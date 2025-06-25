@@ -1,0 +1,47 @@
+name: quickhire
+description: "A new Flutter project."
+
+# The following line prevents the package from being accidentally published to
+# pub.dev using `flutter pub publish`. This is preferred for private packages.
+publish_to: 'none' # Remove this line if you wish to publish to pub.dev
+
+# The following defines the version and build number for your application.
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.5.1
+
+# Dependencies specify other packages that your package needs in order to work.
+dependencies:
+  flutter:
+    sdk: flutter
+  intl: 0.20.2
+  get: ^4.6.5
+  table_calendar: ^3.0.8
+  intl_phone_field: ^3.0.1
+  http: ^1.2.2
+  socket_io_client: ^2.0.3+1
+  awesome_notifications: 0.10.1
+  # The following adds the Cupertino Icons font to your application.
+  # Use with the CupertinoIcons class for iOS style icons.
+  cupertino_icons: ^1.0.8
+  shared_preferences: ^2.4.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+
+  # The "flutter_lints" package contains a set of recommended lints to
+  # encourage good coding practices.
+  flutter_lints: ^4.0.0
+
+# Flutter-specific configurations
+flutter:
+
+  # Ensures that the Material Icons font is included with the application.
+  uses-material-design: true
+
+  # To add assets to the application, specify an assets section.
+  assets:
+    - assets/quickhirelogo.png
+    - assets/quickhirelogo2.png
