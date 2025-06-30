@@ -1,8 +1,14 @@
+// ignore_for_file: unused_local_variable
+
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../services/service_joblisting_list.dart';
 import '../models/job_listing.dart';
 import 'create_jobListing_screen.dart';
+import '../services/review_service.dart';
+import '../widgets/review_dialog.dart';
+// import 'package:shared_preferences/shared_preferences.dart';
+import '../services/user_service.dart';
 
 class JobListingScreen extends StatefulWidget {
   static const String id = 'job_listing';
@@ -37,6 +43,19 @@ class _JobListingScreenState extends State<JobListingScreen> {
           j.status == 'paused').toList();
       _isLoading = false;
     });
+  }
+
+  Future<String> getCurrentUserId() async {
+    final userService = UserService();
+    final profile = await userService.fetchProfile();
+    if (profile == null) return '';
+    // The user id is inside profile['user']['id']
+    return profile['user']?['id'] ?? '';
+  }
+
+  Future<bool> _showReviewButton(JobListing job) async {
+    final userId = await getCurrentUserId();
+    return await ReviewService().hasReviewed(job.id, userId);
   }
 
   void _onSearch(String query) {
@@ -296,7 +315,7 @@ class _JobListingScreenState extends State<JobListingScreen> {
   }
 
   Widget _progressJobCard(JobListing job) {
-    final assigned = job.acceptedBy.where((a) => a.status == 'accepted').toList();
+    final assigned = job.acceptedBy.where((a) => a.status == 'accepted' || a.status == 'completed').toList();
     final candidateName = assigned.isNotEmpty && assigned.first.jobSeeker is Map
         ? assigned.first.jobSeeker['name'] ?? 'N/A'
         : 'N/A';
@@ -326,9 +345,8 @@ class _JobListingScreenState extends State<JobListingScreen> {
                     // Implement actions as needed
                   },
                   itemBuilder: (context) => [
-                    const PopupMenuItem(value: 'view', child: Text('View Progress')),
                     const PopupMenuItem(value: 'contact', child: Text('Contact Candidate')),
-                    const PopupMenuItem(value: 'complete', child: Text('Mark as Completed')),
+                    // const PopupMenuItem(value: 'complete', child: Text('Mark as Completed')),
                   ],
                 ),
               ],
@@ -372,6 +390,57 @@ class _JobListingScreenState extends State<JobListingScreen> {
                 ),
               ],
             ),
+            const SizedBox(height: 10),
+            // --- Review Button Section ---
+            if (job.status == 'completed')
+              FutureBuilder(
+                future: _showReviewButton(job),
+                builder: (context, snapshot) {
+                  if (!snapshot.hasData) return const SizedBox();
+                  if (snapshot.data == true) {
+                    return const Text('You have already Reviewed the project.',
+                        style: TextStyle(color: Colors.green, fontWeight: FontWeight.w500));
+                  }
+                  return ElevatedButton.icon(
+                    icon: const Icon(Icons.rate_review, color: Colors.white),
+                    label: const Text('Give Review', style: TextStyle(color: Colors.white)),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.amber,
+                      minimumSize: const Size(120, 40),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                    ),
+                    onPressed: () async {
+                      final result = await showDialog(
+                        context: context,
+                        builder: (ctx) => ReviewDialog(
+                          onSubmit: (rating, comment) async {
+                            final userId = await getCurrentUserId();
+                            print('Submitting review for user: $userId');
+                            final revieweeId = job.acceptedBy.isNotEmpty
+                                ? (job.acceptedBy.first.jobSeeker is Map
+                                    ? job.acceptedBy.first.jobSeeker['_id']
+                                    : job.acceptedBy.first.jobSeeker.toString())
+                                : '';
+                            await ReviewService().submitReview(
+                              projectId: job.id,
+                              revieweeId: revieweeId,
+                              rating: rating,
+                              comment: comment,
+                            );
+                            Navigator.pop(ctx, true);
+                          },
+                        ),
+                      );
+                      if (result == true) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('Review submitted for admin approval!')),
+                        );
+                        setState(() {});
+                      }
+                    },
+                  );
+                },
+              ),
           ],
         ),
       ),

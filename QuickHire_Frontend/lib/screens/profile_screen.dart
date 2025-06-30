@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import '../services/user_service.dart';
 import 'edit_profile_screen.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'login.dart';
 
 class ProfileScreen extends StatefulWidget {
   static const String id = 'profile_screen';
@@ -20,6 +22,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
   void initState() {
     super.initState();
     _loadProfile();
+  }
+
+  Future<void> _logout() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove('auth_token');
+    await prefs.remove('user_role');
+    // Optionally: await prefs.clear(); // to clear all keys
+    if (!mounted) return;
+    Navigator.pushNamedAndRemoveUntil(context, Login.id, (route) => false);
   }
 
   Future<void> _loadProfile() async {
@@ -185,6 +196,26 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         },
                         style: ElevatedButton.styleFrom(
                           backgroundColor: Colors.amber,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 16),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          textStyle: const TextStyle(fontWeight: FontWeight.bold),
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Center(
+                    child: SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton.icon(
+                        icon: const Icon(Icons.logout, color: Colors.white),
+                        label: const Text('Logout', style: TextStyle(fontSize: 16)),
+                        onPressed: _logout,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.red,
                           foregroundColor: Colors.white,
                           padding: const EdgeInsets.symmetric(vertical: 16),
                           shape: RoundedRectangleBorder(

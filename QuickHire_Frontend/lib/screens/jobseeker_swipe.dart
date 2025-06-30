@@ -148,7 +148,38 @@ class JobSeekerSwipeScreenState extends State<JobSeekerSwipeScreen> {
                                   leading: const Icon(Icons.check_circle, color: Colors.green),
                                   title: Text(job.title),
                                   subtitle: Text(job.location),
-                                  trailing: Text(job.status),
+                                  trailing: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Text(job.status),
+                                      if (job.status == 'in-progress')
+                                        PopupMenuButton<String>(
+                                          icon: const Icon(Icons.more_vert, color: Colors.amber),
+                                          onSelected: (value) async {
+                                            if (value == 'complete') {
+                                              try {
+                                                print('Marking project as completed: ${job.id}');
+                                                await _service.markProjectAsCompleted(job.id);
+                                                ScaffoldMessenger.of(context).showSnackBar(
+                                                  const SnackBar(content: Text('Marked as completed!')),
+                                                );
+                                                _loadProjects(); // Refresh list
+                                              } catch (e) {
+                                                ScaffoldMessenger.of(context).showSnackBar(
+                                                  SnackBar(content: Text('Failed: $e')),
+                                                );
+                                              }
+                                            }
+                                          },
+                                          itemBuilder: (context) => [
+                                            const PopupMenuItem(
+                                              value: 'complete',
+                                              child: Text('Mark as Completed'),
+                                            ),
+                                          ],
+                                        ),
+                                    ],
+                                  ),
                                 ),
                               )),
                         ],

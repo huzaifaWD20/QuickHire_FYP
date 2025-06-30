@@ -35,14 +35,29 @@ class ChatService extends GetxService {
   Future<void> markMessagesAsRead(List<String> messageIds) async {
     final prefs = await SharedPreferences.getInstance();
     final token = prefs.getString('auth_token');
-    await http.put(
-      Uri.parse('${AppConfig.apiBaseUrl}/api/v1/messages/read'),
-      headers: {
-        'Authorization': 'Bearer $token',
-        'Content-Type': 'application/json',
-      },
-      body: json.encode({'messageIds': messageIds}),
-    );
+    
+    try {
+      final response = await http.put(
+        Uri.parse('${AppConfig.apiBaseUrl}/api/v1/messages/read'),
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Content-Type': 'application/json',
+        },
+        body: json.encode({'messageIds': messageIds}),
+      );
+      
+      if (response.statusCode == 200) {
+        // Update local messages to mark them as read
+        for (var message in messages) {
+          if (messageIds.contains(message['_id'])) {
+            message['read'] = true;
+          }
+        }
+        messages.refresh(); // Trigger UI update
+      }
+    } catch (e) {
+      print('Error marking messages as read: $e');
+    }
   }
   
   // Static data for demo purposes
@@ -204,7 +219,22 @@ class ChatService extends GetxService {
     });
 
     socket.on('receive_message', (data) {
+      // Add the received message to the messages list
       messages.add(data);
+      
+      // If the message is for current conversation, no need to show notification
+      // Otherwise, you might want to show a notification or update unread count
+    });
+
+    socket.on('message_read', (data) {
+      // Handle when messages are marked as read by other user
+      final messageIds = List<String>.from(data['messageIds'] ?? []);
+      for (var message in messages) {
+        if (messageIds.contains(message['_id'])) {
+          message['read'] = true;
+        }
+      }
+      messages.refresh();
     });
 
     socket.on('chat_rooms', (data) {
@@ -224,32 +254,39 @@ class ChatService extends GetxService {
   Future<void> sendMessage(String conversationId, String message, String senderId, String receiverId, String projectId) async {
     final prefs = await SharedPreferences.getInstance();
     final token = prefs.getString('auth_token');
-    final response = await http.post(
-      Uri.parse('${AppConfig.apiBaseUrl}/api/v1/messages'),
-      headers: {
-        'Authorization': 'Bearer $token',
-        'Content-Type': 'application/json',
-      },
-      body: json.encode({
-        'receiver': receiverId,
-        'content': message,
-        'project': projectId,
-      }),
-    );
-    if (response.statusCode == 201) {
-      final data = json.decode(response.body);
-      messages.add(data['data']);
-      // Optionally emit via socket for real-time
-      if (isConnected.value) {
-        socket.emit('send_message', {
-          'conversationId': conversationId,
-          'message': message,
-          'senderId': senderId,
-          'receiverId': receiverId,
-          'projectId': projectId,
-          'timestamp': DateTime.now().toIso8601String(),
-        });
+    
+    try {
+      final response = await http.post(
+        Uri.parse('${AppConfig.apiBaseUrl}/api/v1/messages'),
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Content-Type': 'application/json',
+        },
+        body: json.encode({
+          'receiver': receiverId,
+          'content': message,
+          'project': projectId,
+        }),
+      );
+      
+      if (response.statusCode == 201) {
+        final data = json.decode(response.body);
+        messages.add(data['data']);
+        
+        // Optionally emit via socket for real-time
+        if (isConnected.value) {
+          socket.emit('send_message', {
+            'conversationId': conversationId,
+            'message': message,
+            'senderId': senderId,
+            'receiverId': receiverId,
+            'projectId': projectId,
+            'timestamp': DateTime.now().toIso8601String(),
+          });
+        }
       }
+    } catch (e) {
+      print('Error sending message: $e');
     }
   }
 
@@ -263,30 +300,38 @@ class ChatService extends GetxService {
 
   void joinRoom(String conversationId, String otherUserId, String projectId) async {
     messages.clear();
-    // Fetch messages from backend
-    final prefs = await SharedPreferences.getInstance();
-    final token = prefs.getString('auth_token');
-    final response = await http.get(
-      Uri.parse('${AppConfig.apiBaseUrl}/api/v1/messages/conversation/$otherUserId/$projectId'),
-      headers: {
-        'Authorization': 'Bearer $token',
-        'Content-Type': 'application/json',
-      },
-    );
-    if (response.statusCode == 200) {
-      final data = json.decode(response.body);
-      // Assuming data['data'] is a list of messages
-      messages.assignAll(List<Map<String, dynamic>>.from(data['data']));
-    }
-    // Join socket room for real-time updates
-    if (isConnected.value) {
-      socket.emit('join_conversation', conversationId);
+    
+    try {
+      // Fetch messages from backend
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString('auth_token');
+      final response = await http.get(
+        Uri.parse('${AppConfig.apiBaseUrl}/api/v1/messages/conversation/$otherUserId/$projectId'),
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Content-Type': 'application/json',
+        },
+      );
+      
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        // Assuming data['data'] is a list of messages
+        messages.assignAll(List<Map<String, dynamic>>.from(data['data']));
+      }
+      
+      // Join socket room for real-time updates
+      if (isConnected.value) {
+        socket.emit('join_conversation', conversationId);
+      }
+    } catch (e) {
+      print('Error joining room: $e');
     }
   }
 
   void leaveRoom(String conversationId) {
-    // For demo, just clear messages
+    // Clear messages when leaving room
     messages.clear();
+    
     // Still try to leave via socket for future real implementation
     if (isConnected.value) {
       socket.emit('leave_room', conversationId);

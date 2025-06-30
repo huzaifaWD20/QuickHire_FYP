@@ -5,6 +5,7 @@ const mongoose = require('mongoose');
 const cors = require('cors');
 const http = require('http');
 const { initializeSocket } = require('./config/socket');
+const meetingRoutes = require('./routes/meetingRoutes');
 
 // Load env vars
 dotenv.config();
@@ -22,6 +23,7 @@ const io = initializeSocket(server);
 const authRoutes = require('./routes/authRoutes');
 const projectRoutes = require('./routes/projectRoutes'); 
 const messageRoutes = require('./routes/messageRoutes');
+const reviewRoutes = require('./routes/reviewRoutes');
 
 // Body parser
 app.use(express.json());
@@ -41,6 +43,8 @@ mongoose.connect(process.env.MONGO_URI)
 app.use('/api/v1/auth', authRoutes);
 app.use('/api/v1/projects', projectRoutes);
 app.use('/api/v1/messages', messageRoutes);
+app.use('/api/v1/meetings', meetingRoutes);
+app.use('/api/v1/reviews', reviewRoutes);
 
 // Simple route for testing
 app.get('/', (req, res) => {

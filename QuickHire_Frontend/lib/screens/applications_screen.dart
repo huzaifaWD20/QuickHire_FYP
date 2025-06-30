@@ -1,4 +1,4 @@
-// ignore_for_file: unnecessary_null_comparison, unused_field
+// ignore_for_file: unnecessary_null_comparison, unused_field, unused_local_variable
 
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
@@ -209,7 +209,7 @@ class _EmployerApplicationsOverviewScreenState
                                         onPressed: () async {
                                           // Get current user's ID (employer)
                                           final prefs = await SharedPreferences.getInstance();
-                                          final yourUserId = prefs.getString('user_id') ?? '';
+                                          // final yourUserId = prefs.getString('user_id') ?? '';
 
                                           final canAccess = await _chatService.canAccessConversation(
                                             otherUserId: jobSeekerId,
@@ -224,7 +224,6 @@ class _EmployerApplicationsOverviewScreenState
                                                   roomName: jobSeekerName,
                                                   otherUserId: jobSeekerId,
                                                   projectId: project.id,
-                                                  yourUserId: yourUserId,
                                                 ),
                                               ),
                                             );

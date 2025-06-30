@@ -553,3 +553,81 @@ exports.getJobSeekerProfile = async (req, res) => {
     res.status(500).json({ success: false, message: 'Could not fetch profile', error: error.message });
   }
 };
+
+// @desc    Mark project as completed by jobseeker
+// @route   PUT /api/v1/projects/:id/complete
+// @access  Private (Jobseeker only, must be accepted and in-progress)
+// exports.markProjectAsCompleted = async (req, res) => {
+//   try {
+//     if (req.user.role !== 'jobseeker') {
+//       return res.status(403).json({ success: false, message: 'Only jobseekers can mark as completed' });
+//     }
+//     const project = await Project.findById(req.params.id);
+//     console.log(project);
+//     if (!project) {
+//       return res.status(404).json({ success: false, message: 'Project not found' });
+//     }
+//     // Check if jobseeker is accepted and status is in-progress
+//     const accepted = project.acceptedBy.find(
+//       a => a.jobSeeker.toString() === req.user.id && a.status === 'accepted'
+//     );
+//     console.log(accepted);
+//     if (!accepted || project.status !== 'in-progress') {
+//       return res.status(400).json({ success: false, message: 'You cannot mark this project as completed' });
+//     }
+//     // Mark both acceptedBy and project status as completed
+//     accepted.status = 'completed';
+//     project.status = 'completed'; // <-- This line marks the whole project as completed
+//     project.markModified('acceptedBy');
+//     console.log(project);
+//     await project.save();
+//     console.log(project);
+//     res.status(200).json({ success: true, message: 'Project marked as completed', data: project });
+//   } catch (error) {
+//     res.status(500).json({ success: false, message: 'Could not mark as completed', error: error.message });
+//   }
+// };
+
+exports.markProjectAsCompleted = async (req, res) => {
+  try {
+    if (req.user.role !== 'jobseeker') {
+      return res.status(403).json({ success: false, message: 'Only jobseekers can mark as completed' });
+    }
+
+    // Find the project and ensure it's in-progress and the user is accepted
+    const project = await Project.findOne({
+      _id: req.params.id,
+      status: 'in-progress',
+      'acceptedBy.jobSeeker': req.user.id,
+      'acceptedBy.status': 'accepted'
+    });
+
+    if (!project) {
+      return res.status(400).json({ success: false, message: 'You cannot mark this project as completed' });
+    }
+
+    // Update both acceptedBy.$.status and project.status
+    const updated = await Project.findOneAndUpdate(
+      {
+        _id: req.params.id,
+        'acceptedBy.jobSeeker': req.user.id,
+        'acceptedBy.status': 'accepted'
+      },
+      {
+        $set: {
+          'acceptedBy.$.status': 'completed',
+          status: 'completed'
+        }
+      },
+      { new: true }
+    );
+
+    if (!updated) {
+      return res.status(500).json({ success: false, message: 'Failed to update project' });
+    }
+
+    res.status(200).json({ success: true, message: 'Project marked as completed', data: updated });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Could not mark as completed', error: error.message });
+  }
+};

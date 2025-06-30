@@ -104,7 +104,6 @@ class MyApp extends StatelessWidget {
             roomName: args['roomName'],
             otherUserId: args['otherUserId'],
             projectId: args['projectId'],
-            yourUserId: args['yourUserId'],
           );
         },
         '/main': (context) => const MainWrapper(),

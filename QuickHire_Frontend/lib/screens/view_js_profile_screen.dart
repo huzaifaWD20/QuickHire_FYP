@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import '../services/user_service.dart';
+import '../services/review_service.dart';
+import '../widgets/jobseeker_ratings.dart';
 
 class JobSeekerProfileScreen extends StatefulWidget {
   static const String id = 'jobseeker_profile_screen';
@@ -13,6 +15,7 @@ class JobSeekerProfileScreen extends StatefulWidget {
 class _JobSeekerProfileScreenState extends State<JobSeekerProfileScreen> {
   final UserService _userService = UserService();
   Map<String, dynamic>? profile;
+  List<dynamic> reviews = [];
   bool isLoading = true;
 
   @override
@@ -25,7 +28,7 @@ class _JobSeekerProfileScreenState extends State<JobSeekerProfileScreen> {
     setState(() => isLoading = true);
     try {
       profile = await _userService.fetchJobSeekerProfile(widget.userId);
-      print('Profile data: $profile');
+      reviews = await ReviewService().getJobSeekerReviews(widget.userId);
       setState(() => isLoading = false);
     } catch (e) {
       setState(() => isLoading = false);
@@ -119,6 +122,10 @@ class _JobSeekerProfileScreenState extends State<JobSeekerProfileScreen> {
                       const SizedBox(height: 6),
                       Text(profile?['phoneNumber'] ?? '-',
                           style: const TextStyle(fontSize: 15)),
+                      const SizedBox(height: 18),
+                      Text('Ratings & Reviews', style: Theme.of(context).textTheme.titleMedium),
+                      const SizedBox(height: 6),
+                      JobSeekerRatings(reviews: reviews),
                     ],
                   ),
                 ),

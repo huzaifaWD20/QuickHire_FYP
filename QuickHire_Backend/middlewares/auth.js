@@ -68,3 +68,13 @@ exports.authorize = (...roles) => {
     next();
   };
 };
+
+exports.adminOnly = (req, res, next) => {
+  if (!req.user || req.user.role !== 'admin') {
+    return res.status(403).json({
+      success: false,
+      message: 'Only admins are authorized to access this route'
+    });
+  }
+  next();
+};

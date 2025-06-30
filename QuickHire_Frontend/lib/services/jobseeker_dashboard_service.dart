@@ -99,4 +99,15 @@ class JobSeekerDashboardService {
       throw Exception('Failed to apply to project');
     }
   }
+
+  Future<void> markProjectAsCompleted(String projectId) async {
+    final headers = await _headers;
+    final response = await http.put(
+      Uri.parse('$baseUrl/projects/$projectId/complete'),
+      headers: headers,
+    );
+    if (response.statusCode != 200) {
+      throw Exception('Failed to mark project as completed');
+    }
+  }
 }

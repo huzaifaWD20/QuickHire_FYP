@@ -10,8 +10,9 @@ const {
   getProjectApplicants,
   updateApplicantStatus,
   getEmployerProjects,
-  getAcceptedProjects,
-  getJobSeekerProfile
+  getAcceptedProjects,  
+  getJobSeekerProfile,
+  markProjectAsCompleted
 } = require('../controllers/projectController');
 
 const { protect, authorize } = require('../middlewares/auth');
@@ -32,5 +33,6 @@ router.put('/:id/applicants/:applicantId', protect, authorize('employer'), updat
 router.get('/employer/list', protect, authorize('employer'), getEmployerProjects);
 router.get('/jobseeker/accepted', protect, authorize('jobseeker'), getAcceptedProjects);
 router.get('/jobseeker-profile/:userId', protect, authorize('employer'), getJobSeekerProfile);
+router.put('/:id/complete', protect, authorize('jobseeker'), markProjectAsCompleted);
 
 module.exports = router;

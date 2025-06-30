@@ -10,6 +10,8 @@ import 'applications_screen.dart';
 import '../services/service_chat.dart';
 import 'chat_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../services/review_service.dart';
+import '../widgets/review_dialog.dart';
 
 
 
@@ -42,6 +44,19 @@ class _EmpDashboardState extends State<EmpDashboard> {
   void initState() {
     super.initState();
     _loadDashboard();
+  }
+
+  Future<String> getCurrentUserId() async {
+    final userService = UserService();
+    final profile = await userService.fetchProfile();
+    if (profile == null) return '';
+    // The user id is inside profile['user']['id']
+    return profile['user']?['id'] ?? '';
+  }
+
+  Future<bool> _showReviewButton(JobListing job) async {
+    final userId = await getCurrentUserId();
+    return await ReviewService().hasReviewed(job.id, userId);
   }
 
   Future<void> _loadDashboard() async {
@@ -386,7 +401,7 @@ class _EmpDashboardState extends State<EmpDashboard> {
                     ),
                     onPressed: () async {
                       final prefs = await SharedPreferences.getInstance();
-                      final yourUserId = prefs.getString('user_id') ?? '';
+                      // final yourUserId = prefs.getString('user_id') ?? '';
 
                       final jobSeekerId = applicant.jobSeeker is Map
                           ? applicant.jobSeeker['_id'] ?? applicant.jobSeeker['id']
@@ -407,7 +422,6 @@ class _EmpDashboardState extends State<EmpDashboard> {
                             'roomName': roomName,
                             'otherUserId': jobSeekerId,
                             'projectId': projectId,
-                            'yourUserId': yourUserId,
                           },
                         );
                       } else {
@@ -428,6 +442,57 @@ class _EmpDashboardState extends State<EmpDashboard> {
                     },
                   ),
                 ),
+                const SizedBox(height: 10),
+                // --- Review Button Section ---
+                if (job.status == 'completed')
+                  FutureBuilder(
+                    future: _showReviewButton(job),
+                    builder: (context, snapshot) {
+                      if (!snapshot.hasData) return const SizedBox();
+                      if (snapshot.data == true) {
+                        return const Text('You have already Reviewed the project.',
+                            style: TextStyle(color: Colors.green, fontWeight: FontWeight.w500));
+                      }
+                      return ElevatedButton.icon(
+                        icon: const Icon(Icons.rate_review, color: Colors.white),
+                        label: const Text('Give Review', style: TextStyle(color: Colors.white)),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.amber,
+                          minimumSize: const Size(120, 40),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                        ),
+                        onPressed: () async {
+                          final result = await showDialog(
+                            context: context,
+                            builder: (ctx) => ReviewDialog(
+                              onSubmit: (rating, comment) async {
+                                final userId = await getCurrentUserId();
+                                print('Submitting review for user: $userId');
+                                final revieweeId = job.acceptedBy.isNotEmpty
+                                    ? (job.acceptedBy.first.jobSeeker is Map
+                                        ? job.acceptedBy.first.jobSeeker['_id']
+                                        : job.acceptedBy.first.jobSeeker.toString())
+                                    : '';
+                                await ReviewService().submitReview(
+                                  projectId: job.id,
+                                  revieweeId: revieweeId,
+                                  rating: rating,
+                                  comment: comment,
+                                );
+                                Navigator.pop(ctx, true);
+                              },
+                            ),
+                          );
+                          if (result == true) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(content: Text('Review submitted for admin approval!')),
+                            );
+                            setState(() {});
+                          }
+                        },
+                      );
+                    },
+                  ),
             ],
           ),
           trailing: _statusTag(applicant.status),

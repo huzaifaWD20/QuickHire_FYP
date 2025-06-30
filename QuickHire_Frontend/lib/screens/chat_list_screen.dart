@@ -1,3 +1,5 @@
+// ignore_for_file: unused_local_variable
+
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../services/service_chat.dart';
@@ -29,8 +31,9 @@ class _ChatListScreenState extends State<ChatListScreen> {
 
   String getInitials(String name) {
     final parts = name.trim().split(RegExp(r'\s+'));
+    if (parts.isEmpty) return '';
     if (parts.length == 1) return parts[0][0].toUpperCase();
-    return (parts[0][0] + parts[1][0]).toUpperCase();
+    return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
   }
 
   Future<void> _fetchChats() async {
@@ -39,6 +42,7 @@ class _ChatListScreenState extends State<ChatListScreen> {
     });
     final prefs = await SharedPreferences.getInstance();
     final token = prefs.getString('auth_token') ?? '';
+    final currentUserId = prefs.getString('user_id') ?? '';
 
     // Fetch ongoing conversations from backend
     final response = await http.get(
@@ -51,6 +55,18 @@ class _ChatListScreenState extends State<ChatListScreen> {
     if (response.statusCode == 200) {
       final data = json.decode(response.body);
       _conversations = List<Map<String, dynamic>>.from(data['data']);
+      
+      // Filter unread count to only show messages where current user is receiver and hasn't read
+      for (var conversation in _conversations) {
+        // Only count unread messages where current user is the receiver
+        final unreadCount = conversation['unreadCount'] ?? 0;
+        final receiverId = conversation['lastMessageReceiver'] ?? '';
+        
+        // Only show unread count if current user is the receiver of unread messages
+        if (receiverId != currentUserId) {
+          conversation['unreadCount'] = 0;
+        }
+      }
     } else {
       _conversations = [];
     }
@@ -58,6 +74,11 @@ class _ChatListScreenState extends State<ChatListScreen> {
     setState(() {
       _loading = false;
     });
+  }
+
+  // Add this method to refresh chat list when returning from chat screen
+  void _refreshChatList() {
+    _fetchChats();
   }
 
   @override
@@ -146,7 +167,8 @@ class _ChatListScreenState extends State<ChatListScreen> {
                     overflow: TextOverflow.ellipsis,
                   ),
                 ),
-                if (unreadCount != null && unreadCount > 0)
+                // Only show unread count if there are actually unread messages for current user
+                if (unreadCount > 0)
                   Container(
                     margin: const EdgeInsets.only(left: 8),
                     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
@@ -169,7 +191,9 @@ class _ChatListScreenState extends State<ChatListScreen> {
               final prefs = await SharedPreferences.getInstance();
               final yourUserId = prefs.getString('user_id') ?? '';
               chatService.joinRoom(conversationId, otherUserId, projectId);
-              Navigator.pushNamed(
+              
+              // Navigate and wait for result, then refresh
+              final result = await Navigator.pushNamed(
                 context,
                 ChatScreen.id,
                 arguments: {
@@ -177,9 +201,11 @@ class _ChatListScreenState extends State<ChatListScreen> {
                   'roomName': roomName,
                   'otherUserId': otherUserId,
                   'projectId': projectId,
-                  'yourUserId': yourUserId,
                 },
               );
+              
+              // Refresh chat list when returning from chat screen
+              _refreshChatList();
             },
           );
         },
